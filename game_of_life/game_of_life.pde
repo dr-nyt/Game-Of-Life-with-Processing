@@ -11,14 +11,18 @@ int columns;
 boolean start = false;
 boolean debug = false;
 color debugColor = color(10, 100, 255);
-int frameCounter = 1;
+boolean addBlock = false;
+int frameCounter = 0;
 
 boolean star = false;
 boolean glider = false;
 boolean block = false;
 
+ScrollRect scrollRect;        // the vertical scroll bar
+float heightOfCanvas = 1500;  // realHeight of the entire scene  
+
 void setup() {
-    size(1000, 1000);
+    size(1500, 1000);
 
     boxWidth = 2;
     boxHeight = boxWidth;
@@ -26,8 +30,7 @@ void setup() {
     rows = int(width / boxWidth);
     columns = rows;
 
-    print(rows + "\n");
-    print(columns + "\n");
+    scrollRect = new ScrollRect();
 
     makeBoxes();
 }
@@ -45,66 +48,104 @@ void update() {
 
 void draw() {
     background(255);
-    if(debug) {
+    scene();
+    scrollRect.display();
+    scrollRect.update();
+}
+
+void scene() {
+  pushMatrix();
+ 
+  // reading scroll bar 
+  float newYValue = scrollRect.scrollValue();  
+  translate (0, newYValue);
+ 
+  // The scene :
+  if(debug) {
         if(frameCounter < 6) {
-          update();
-          frameCounter += 1;
+            update();
+            frameCounter += 1;
         }
     } else {
-         update(); 
+            update(); 
     }
-    
+
     for(int i = 0; i < Boxes.size(); i++){
-          Box aBox = (Box) Boxes.get(i);
-          aBox.draw();
+            Box aBox = (Box) Boxes.get(i);
+            aBox.draw();
     }
+ 
+  popMatrix();
+}
+
+void mousePressed() {
+  scrollRect.mousePressedRect();
+}
+ 
+void mouseReleased() {
+  scrollRect.mouseReleasedRect();
 }
 
 void keyPressed() {
     if(key == ENTER) {
         if(start) {
             start = false;
+            print("Stopped\n");
         } else {
             start = true;
+            print("Started\n");
         }
     } else if (key == ' ') {
         frameCounter = 0;
+        print("Reset frame counter\n");
     } else if (key == 'x') {
         start = false;
         star = false;
         glider = false;
         block = false;
         wipe();
+        print("Wiped\n");
     } else if (key == 's') {
         if(star) {
             star = false;
+            print("Removed Pattern\n");
         } else {
             star = true;
             glider = false;
             block = false;
+            print("Star Pattern\n");
         }
     } else if (key == 'g') {
         if(glider) {
             glider = false;
+            print("Removed Pattern\n");
         } else {
             glider = true;
             star = false;
             block = false;
+            print("Glider Pattern\n");
         }
     } else if (key == 'b') {
          if(block) {
              block = false;
+             print("Removed Pattern\n");
          } else {
              block = true;
              star = false;
              glider = false;
+             print("Block Pattern\n");
          }
     } else if(key == 'd') {
          if(debug) {
-              debug = false; 
+              debug = false;
+              print("Debug Off\n");
          } else {
               debug = true; 
+              print("Debug On\n");
          }
+    } else if (key == 't') {
+        addBlock = true;
+        print("Block added\n");
     }
 }
 
@@ -227,12 +268,19 @@ class Box {
             this.isAlive = false;
             fill(this.boxColorDead);
         }
+
         
-        if(this.id == ((rows * columns) / 2) + (columns / 2) && frameCounter < 6 && debug) {
-           //fill(debugColor);
-           star = true;
-           checkClick();
+        if(this.id == ((rows * columns) / 2) + (columns / 2)) {
+            if(debug) {
+                fill(debugColor);
+            }
+            if(addBlock) {
+                block = true;
+                checkClick();
+                addBlock = false;
+            }
         }
+
         rect(this.x, this.y, this.width, this.height);
     }
 
@@ -405,7 +453,6 @@ class Box {
                   aBox.c = this.boxColorAlive;
                   
                   int northWest = (this.northWest - rows) - 1;
-                  print(northWest);
                   while(northWest >= 0 && northWest % rows != 0) {
                       aBox = (Box) Boxes.get(northWest);
                       aBox.isAlive = true;
@@ -485,3 +532,77 @@ class Box {
     }
 
 }
+
+class ScrollRect {
+ 
+  float rectPosX=0;
+  float rectPosY=0;
+  float rectWidth=14; 
+  float rectHeight=30;
+ 
+  boolean holdScrollRect=false; 
+ 
+  float offsetMouseY; 
+ 
+  //constr
+  ScrollRect() {
+    // you have to make a scrollRect in setup after size()
+    rectPosX=width-rectWidth-1;
+  }//constr
+ 
+  void display() {
+    fill(122);
+    stroke(0);
+    line (rectPosX-1, 0, 
+      rectPosX-1, height);
+    rect(rectPosX, rectPosY, 
+      rectWidth, rectHeight);
+ 
+    // Three small lines in the center   
+    centerLine(-3); 
+    centerLine(0);
+    centerLine(3);
+  }
+ 
+  void centerLine(float offset) {
+    line(rectPosX+3, rectPosY+rectHeight/2+offset, 
+      rectPosX+rectWidth-3, rectPosY+rectHeight/2+offset);
+  }
+ 
+  void mousePressedRect() {
+    if (mouseOver()) {
+      holdScrollRect=true;
+      offsetMouseY=mouseY-rectPosY;
+    }
+  }
+ 
+  void mouseReleasedRect() {
+    scrollRect.holdScrollRect=false;
+  }
+ 
+  void update() {
+    // dragging of the mouse 
+    if (holdScrollRect) {
+      rectPosY=mouseY-offsetMouseY;
+      if (rectPosY<0)
+        rectPosY=0;
+      if (rectPosY+rectHeight>height-1)
+        rectPosY=height-rectHeight-1;
+    }
+  }
+ 
+  float scrollValue() {
+    return
+      map(rectPosY, 
+      0, height-rectHeight, 
+      0, - (heightOfCanvas - height));
+  }
+ 
+  boolean mouseOver() {
+    return mouseX>rectPosX&&
+      mouseX<rectPosX+rectWidth&&
+      mouseY>rectPosY&&
+      mouseY<rectPosY+rectHeight;
+  }//function 
+  //
+}//class
