@@ -5,6 +5,9 @@ color boxColorDead = color(0, 0, 0);
 int boxWidth;
 int boxHeight;
 
+int trueWidth = 1000;
+int trueHeight = 1000;
+
 int rows;
 int columns;
 
@@ -14,15 +17,17 @@ color debugColor = color(10, 100, 255);
 boolean addBlock = false;
 int frameCounter = 0;
 
+PImage screenShot;
+
 boolean star = false;
 boolean glider = false;
 boolean block = false;
 
 ScrollRect scrollRect;        // the vertical scroll bar
-float heightOfCanvas = 1500;  // realHeight of the entire scene  
+float heightOfCanvas = trueHeight;  // realHeight of the entire scene  
 
 void setup() {
-    size(1500, 1000);
+    size(1000, 1000);
 
     boxWidth = 2;
     boxHeight = boxWidth;
@@ -72,8 +77,19 @@ void scene() {
 
     for(int i = 0; i < Boxes.size(); i++){
             Box aBox = (Box) Boxes.get(i);
-            aBox.draw();
+            aBox.run();
     }
+    
+    //for(int i = 0; i < Boxes.size(); i++){
+    //        Box aBox = (Box) Boxes.get(i);
+    //        try {
+    //            aBox.join();
+    //        } catch(Exception e) {
+    //            print(e);
+    //        }
+    //}
+    
+    println(frameRate);
  
   popMatrix();
 }
@@ -146,6 +162,10 @@ void keyPressed() {
     } else if (key == 't') {
         addBlock = true;
         print("Block added\n");
+    } else if (key == 'p') {
+         screenShot = get(0, 0, trueWidth, trueHeight);
+         screenShot.save("output.png");
+         print("Screenshot saved!");
     }
 }
 
@@ -189,7 +209,7 @@ void wipe() {
     }
 }
 
-class Box {
+class Box extends Thread {
     public int id;
     public boolean isAlive = false;
     public int score = 0;
@@ -258,6 +278,10 @@ class Box {
         }
 
 
+    }
+    
+    public void run() {
+        draw(); 
     }
 
     void draw() {
