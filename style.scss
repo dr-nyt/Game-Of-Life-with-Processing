@@ -1,0 +1,43 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: black;
+    min-width: 1500px;
+}
+
+#start {
+    position: absolute;
+    top: 2em;
+    left: 4em;
+    width: 100px;
+    background: green;
+    color: white;
+    border: none;
+    padding: 1em;
+}
+
+#canvas {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: auto;
+    width: 1000px;
+
+    .cell {
+        background: white;
+        border: 1px solid black;
+    }
+
+    .cell:hover {
+        background: yellow;
+    }
+
+    .alive {
+        background: yellow !important;
+    }
+}
