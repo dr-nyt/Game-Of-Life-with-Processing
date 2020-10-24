@@ -1,8 +1,15 @@
 let start = false;
 
-let cells: HTMLDivElement[] = [];
-let possibleCells: string[] = [];
-let tempPossibleCells: string[] = [];
+interface cellType {
+    id: string
+    element: HTMLElement,
+    alive: boolean,
+    survivalScore: number
+}
+
+let cells: cellType[] = [];
+
+let possibleCells: cellType[] = [];
 
 document.getElementById("start").addEventListener('click', toggleStart);
 
@@ -15,7 +22,7 @@ function createCells(canvas: HTMLElement) {
         cell.style.width = cellDimension;
         cell.style.height = cellDimension;
         cell.addEventListener('click', setAlive)
-        cells.push(cell);
+        cells.push({ id: cell.id, element: cell, alive: false, survivalScore: 0 });
         canvas.appendChild(cell);
     }
 }
@@ -25,14 +32,24 @@ function setAlive(event: MouseEvent) {
     const targetCell = event.target as HTMLElement;
     if (targetCell.classList.contains("alive")) {
         targetCell.classList.remove("alive");
-        possibleCells = possibleCells.filter(cellID => targetCell.id !== cellID);
+        targetCell.style.background = "white";
+        removePossibleCell(targetCell.id);
     } else {
         targetCell.classList.add("alive");
-        possibleCells.push(targetCell.id);
+        removePossibleCell(targetCell.id);
+        addPossibleCell(targetCell.id, true);
     }
     if (debug) {
         console.log("Selected Cell: " + targetCell.id);
     }
+}
+
+function addPossibleCell(cellID: string, isAlive: boolean) {
+    possibleCells.push({ id: cellID, element: cells[cellID].element, alive: isAlive, survivalScore: 0 });
+}
+
+function removePossibleCell(cellID: string) {
+    possibleCells = possibleCells.filter(cell => cellID !== cell.id);
 }
 
 function toggleStart(event: MouseEvent) {
@@ -49,117 +66,140 @@ function toggleStart(event: MouseEvent) {
     }
 }
 
-function prepGame() {
-    possibleCells.sort(function (a: any, b: any) { return a - b });
-    console.log(possibleCells);
-    for (const cellID of possibleCells) {
-        if (cells[cellID].classList.contains("alive")) {
-            console.log("Alive");
-            gameRound(cellID, true);
-        } else {
-            console.log("Dead");
-            gameRound(cellID, false);
+async function prepGame() {
+    while (start) {
+        possibleCells.sort(function (a: any, b: any) { return a - b });
+
+        for (const cell of possibleCells) {
+            if (cell.element.classList.contains("alive")) {
+                console.log("Alive");
+                gameRound(cell, true);
+            } else {
+                console.log("Dead");
+                gameRound(cell, false);
+            }
         }
+
+        for (const cell of possibleCells) {
+            if (cell.survivalScore < 2 && cell.alive) {
+                setAliveState(parseInt(cell.id), false);
+            } else if (cell.survivalScore > 3 && cell.alive) {
+                setAliveState(parseInt(cell.id), false);
+            } else if (cell.survivalScore === 3 && !cell.alive) {
+                setAliveState(parseInt(cell.id), true);
+            } else if (cell.survivalScore === 0 && !cell.alive) {
+                cell.element.style.background = "white";
+                removePossibleCell(cell.id);
+            }
+        }
+
+        await sleep(500);
+    }
+    console.log(possibleCells);
+}
+
+const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
+interface cellDirObj {
+    North: number,
+    NorthWest: number,
+    NorthEast: number,
+    South: number,
+    SouthWest: number,
+    SouthEast: number,
+    West: number,
+    East: number,
+}
+
+function calcCellDir(cellNumber): cellDirObj {
+    return {
+        North: cellNumber - cellsPerRow,
+        NorthWest: cellNumber - (cellsPerRow + 1),
+        NorthEast: cellNumber - (cellsPerRow - 1),
+        South: cellNumber + cellsPerRow,
+        SouthWest: cellNumber + (cellsPerRow - 1),
+        SouthEast: cellNumber + (cellsPerRow + 1),
+        West: cellNumber - 1,
+        East: cellNumber + 1,
     }
 }
 
-function startGame() {
+function gameRound(cell: cellType, isAlive: boolean) {
+    cell.survivalScore = 0;
 
-}
-
-function gameRound(cellID: string, isAlive: boolean) {
-    const cellNumber = parseInt(cellID);
-    let survivalScore = 0;
-
-    const North = cellNumber - cellsPerRow;
-    const NorthWest = cellNumber - (cellsPerRow + 1);
-    const NorthEast = cellNumber - (cellsPerRow - 1)
-
-    const South = cellNumber + cellsPerRow;
-    const SouthWest = cellNumber + (cellsPerRow - 1);
-    const SouthEast = cellNumber + (cellsPerRow + 1)
-
-    const West = cellNumber - 1;
-    const East = cellNumber + 1;
+    const cellNumber = parseInt(cell.id);
+    const cellDir = calcCellDir(cellNumber);
 
     // North Side
-    if (checkNorth(North)) {
-        if (cells[North].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(North)) {
-            possibleCells.push(North.toString());
-            cells[North].style.background = "blue"
+    if (checkNorth(cellDir.North)) {
+        if (cells[cellDir.North].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.North)) {
+            addPossibleCell(cellDir.North.toString(), false);
+            cells[cellDir.North].element.style.background = "blue"
         }
     }
-    if (checkNorthWest(NorthWest)) {
-        if (cells[NorthWest].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(NorthWest)) {
-            possibleCells.push(NorthWest.toString());
-            cells[NorthWest].style.background = "blue"
+    if (checkNorthWest(cellDir.NorthWest)) {
+        if (cells[cellDir.NorthWest].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.NorthWest)) {
+            addPossibleCell(cellDir.NorthWest.toString(), false);
+            cells[cellDir.NorthWest].element.style.background = "blue"
         }
     }
-    if (checkNorthEast(NorthEast)) {
-        if (cells[NorthEast].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(NorthEast)) {
-            possibleCells.push(NorthEast.toString());
-            cells[NorthEast].style.background = "blue"
+    if (checkNorthEast(cellDir.NorthEast)) {
+        if (cells[cellDir.NorthEast].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.NorthEast)) {
+            addPossibleCell(cellDir.NorthEast.toString(), false);
+            cells[cellDir.NorthEast].element.style.background = "blue"
         }
     }
 
     // South Side
-    if (checkSouth(South)) {
-        if (cells[South].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(South)) {
-            possibleCells.push(South.toString());
-            cells[South].style.background = "blue"
+    if (checkSouth(cellDir.South)) {
+        if (cells[cellDir.South].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.South)) {
+            addPossibleCell(cellDir.South.toString(), false);
+            cells[cellDir.South].element.style.background = "blue"
         }
     }
-    if (checkSouthWest(SouthWest)) {
-        if (cells[SouthWest].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(SouthWest)) {
-            possibleCells.push(SouthWest.toString());
-            cells[SouthWest].style.background = "blue"
+    if (checkSouthWest(cellDir.SouthWest)) {
+        if (cells[cellDir.SouthWest].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.SouthWest)) {
+            addPossibleCell(cellDir.SouthWest.toString(), false);
+            cells[cellDir.SouthWest].element.style.background = "blue"
         }
     }
-    if (checkSouthEast(SouthEast)) {
-        if (cells[SouthEast].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(SouthEast)) {
-            possibleCells.push(SouthEast.toString());
-            cells[SouthEast].style.background = "blue"
+    if (checkSouthEast(cellDir.SouthEast)) {
+        if (cells[cellDir.SouthEast].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.SouthEast)) {
+            addPossibleCell(cellDir.SouthEast.toString(), false);
+            cells[cellDir.SouthEast].element.style.background = "blue"
         }
     }
 
     // Sides
-    if (checkWest(West)) {
-        if (cells[West].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(West)) {
-            possibleCells.push(West.toString());
-            cells[West].style.background = "blue"
+    if (checkWest(cellDir.West)) {
+        if (cells[cellDir.West].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.West)) {
+            addPossibleCell(cellDir.West.toString(), false);
+            cells[cellDir.West].element.style.background = "blue"
         }
     }
-    if (checkEast(East)) {
-        if (cells[East].classList.contains("alive")) {
-            survivalScore++;
-        } else if (isAlive && !isPrePossible(East)) {
-            possibleCells.push(East.toString());
-            cells[East].style.background = "blue"
+    if (checkEast(cellDir.East)) {
+        if (cells[cellDir.East].element.classList.contains("alive")) {
+            cell.survivalScore++;
+        } else if (isAlive && !isPrePossible(cellDir.East)) {
+            addPossibleCell(cellDir.East.toString(), false);
+            cells[cellDir.East].element.style.background = "blue"
         }
-    }
-
-    if (survivalScore < 2 && isAlive) {
-        setAliveState(cellNumber, false);
-    } else if (survivalScore > 3 && isAlive) {
-        setAliveState(cellNumber, false);
-    }
-
-    if (survivalScore === 3 && !isAlive) {
-        setAliveState(cellNumber, true);
     }
 
     if (debug) {
@@ -168,19 +208,19 @@ function gameRound(cellID: string, isAlive: boolean) {
 }
 
 function isPrePossible(cellNumber: number) {
-    for (const cellID of possibleCells) {
-        if (parseInt(cellID) === cellNumber) return true;
+    for (const cell of possibleCells) {
+        if (parseInt(cell.id) === cellNumber) return true;
     }
     return false;
 }
 
 function setAliveState(cellID: number, isAlive: boolean) {
     if (!isAlive) {
-        cells[cellID].classList.remove("alive");
-        possibleCells = possibleCells.filter(cellID => cells[cellID].id !== cellID.toString());
+        cells[cellID].element.classList.remove("alive");
+        removePossibleCell(cellID.toString());
     } else {
-        cells[cellID].classList.add("alive");
-        possibleCells.push(cells[cellID].id);
+        cells[cellID].element.classList.add("alive");
+        addPossibleCell(cellID.toString(), true);
     }
 }
 
